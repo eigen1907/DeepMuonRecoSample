@@ -1,0 +1,16 @@
+cmsDriver.py step2_RERECO \
+    --processName RERECO \
+    --datatier GEN-SIM-RECO \
+    --eventcontent RECOSIM \
+    --step RAW2DIGI,RECO,RECOSIM \
+    --conditions 140X_mcRun4_realistic_v4 \
+    --geometry Extended2026D110 \
+    --era Phase2C17I13M9 \
+    --python_filename runReReco_cfg.py \
+    --customise SLHCUpgradeSimulations/Configuration/aging.customise_aging_1000 \
+    --customise_commands "process.options.accelerators = cms.untracked.vstring('cpu')" \
+    --outputCommand "keep *_mix_MergedTrackTruth_*,keep *_genParticles_*_*,keep *_simSiPixelDigis_*_*" \
+    --filein "file:input.root" \
+    --fileout "file:output.root" \
+    --mc \
+    --number 3
