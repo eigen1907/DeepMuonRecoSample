@@ -1,6 +1,6 @@
 import FWCore.ParameterSet.Config as cms
 
-process = cms.Process("DeepMuonReco")
+process = cms.Process("DeepMuonRecoSample")
 
 from FWCore.ParameterSet.VarParsing import VarParsing
 options = VarParsing('analysis')
@@ -31,7 +31,7 @@ process.tpClusterProducer.phase2OTSimLinkSrc = cms.InputTag("simSiPixelDigis", "
 process.tpClusterProducer.pixelClusterSrc = cms.InputTag("siPixelClusters")
 process.tpClusterProducer.phase2OTClusterSrc = cms.InputTag("siPhase2Clusters")
 
-process.load("DeepMuonReco.Ntuplizer.deepMuonRecoNtuplizer_cfi")
+process.load("DeepMuonRecoSample.Ntuplizer.deepMuonRecoNtuplizer_cfi")
 
 process.TFileService = cms.Service("TFileService",
     fileName = cms.string(options.outputFile)

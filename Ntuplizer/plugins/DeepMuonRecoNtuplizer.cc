@@ -21,16 +21,22 @@
 #include "DataFormats/MuonReco/interface/Muon.h"
 #include "DataFormats/TrackReco/interface/Track.h"
 
-#include "DataFormats/DTRecHit/interface/DTRecSegment4DCollection.h"
-#include "DataFormats/CSCRecHit/interface/CSCSegmentCollection.h"
 #include "DataFormats/RPCRecHit/interface/RPCRecHitCollection.h"
 #include "DataFormats/GEMRecHit/interface/GEMRecHitCollection.h"
+#include "DataFormats/GEMRecHit/interface/GEMSegmentCollection.h"
+#include "DataFormats/DTRecHit/interface/DTRecSegment4DCollection.h"
+#include "DataFormats/CSCRecHit/interface/CSCSegmentCollection.h"
+
+#include "DataFormats/MuonDetId/interface/RPCDetId.h"
+#include "DataFormats/MuonDetId/interface/GEMDetId.h"
+#include "DataFormats/MuonDetId/interface/CSCDetId.h"
+#include "DataFormats/MuonDetId/interface/DTChamberId.h"
 
 #include "Geometry/Records/interface/MuonGeometryRecord.h"
-#include "Geometry/DTGeometry/interface/DTGeometry.h"
-#include "Geometry/CSCGeometry/interface/CSCGeometry.h"
 #include "Geometry/RPCGeometry/interface/RPCGeometry.h"
 #include "Geometry/GEMGeometry/interface/GEMGeometry.h"
+#include "Geometry/DTGeometry/interface/DTGeometry.h"
+#include "Geometry/CSCGeometry/interface/CSCGeometry.h"
 
 #include "SimDataFormats/TrackingAnalysis/interface/TrackingParticle.h"
 #include "SimDataFormats/Associations/interface/TrackToTrackingParticleAssociator.h"
@@ -58,6 +64,7 @@ private:
   
   edm::EDGetTokenT<RPCRecHitCollection> rpcHitToken_;
   edm::EDGetTokenT<GEMRecHitCollection> gemHitToken_;
+  edm::EDGetTokenT<GEMSegmentCollection> gemSegmentToken_;
   edm::EDGetTokenT<DTRecSegment4DCollection> dtSegmentToken_;
   edm::EDGetTokenT<CSCSegmentCollection> cscSegmentToken_;
 
@@ -104,6 +111,13 @@ private:
   std::vector<double> gemHitPosXErr, gemHitPosYErr;
   std::vector<int> gemHitCls, gemHitBX;
 
+  std::vector<int> gemSegRawId;
+  std::vector<double> gemSegPosX, gemSegPosY, gemSegPosZ;
+  std::vector<double> gemSegPosXErr, gemSegPosYErr;
+  std::vector<double> gemSegDirX, gemSegDirY, gemSegDirZ;
+  std::vector<double> gemSegDirXErr, gemSegDirYErr;
+  std::vector<double> gemSegChi2, gemSegNdof;
+
   std::vector<int> dtSegRawId;
   std::vector<double> dtSegPosX, dtSegPosY, dtSegPosZ;
   std::vector<double> dtSegPosXErr, dtSegPosYErr;
@@ -127,6 +141,7 @@ DeepMuonRecoNtuplizer::DeepMuonRecoNtuplizer(const edm::ParameterSet& iConfig)
     
     rpcHitToken_(consumes<RPCRecHitCollection>(iConfig.getParameter<edm::InputTag>("rpcRecHits"))),
     gemHitToken_(consumes<GEMRecHitCollection>(iConfig.getParameter<edm::InputTag>("gemRecHits"))),
+    gemSegmentToken_(consumes<GEMSegmentCollection>(iConfig.getParameter<edm::InputTag>("gemSegments"))),
     dtSegmentToken_(consumes<DTRecSegment4DCollection>(iConfig.getParameter<edm::InputTag>("dtSegments"))),
     cscSegmentToken_(consumes<CSCSegmentCollection>(iConfig.getParameter<edm::InputTag>("cscSegments"))),
     
@@ -197,6 +212,20 @@ void DeepMuonRecoNtuplizer::beginJob() {
   tree_->Branch("gem_hit_cls", &gemHitCls);
   tree_->Branch("gem_hit_bx", &gemHitBX);
 
+  tree_->Branch("gem_seg_rawid", &gemSegRawId);
+  tree_->Branch("gem_seg_pos_x", &gemSegPosX);
+  tree_->Branch("gem_seg_pos_y", &gemSegPosY);
+  tree_->Branch("gem_seg_pos_z", &gemSegPosZ);
+  tree_->Branch("gem_seg_pos_x_err", &gemSegPosXErr);
+  tree_->Branch("gem_seg_pos_y_err", &gemSegPosYErr);
+  tree_->Branch("gem_seg_dir_x", &gemSegDirX);
+  tree_->Branch("gem_seg_dir_y", &gemSegDirY);
+  tree_->Branch("gem_seg_dir_z", &gemSegDirZ);
+  tree_->Branch("gem_seg_dir_x_err", &gemSegDirXErr);
+  tree_->Branch("gem_seg_dir_y_err", &gemSegDirYErr);
+  tree_->Branch("gem_seg_chi2", &gemSegChi2);
+  tree_->Branch("gem_seg_ndof", &gemSegNdof);
+
   tree_->Branch("dt_seg_rawid", &dtSegRawId);
   tree_->Branch("dt_seg_pos_x", &dtSegPosX);
   tree_->Branch("dt_seg_pos_y", &dtSegPosY);
@@ -251,6 +280,11 @@ void DeepMuonRecoNtuplizer::clearVectors() {
   gemHitRawId.clear(); gemHitPosX.clear(); gemHitPosY.clear(); gemHitPosZ.clear();
   gemHitPosXErr.clear(); gemHitPosYErr.clear(); gemHitCls.clear(); gemHitBX.clear();
 
+  gemSegRawId.clear(); gemSegPosX.clear(); gemSegPosY.clear(); gemSegPosZ.clear();
+  gemSegPosXErr.clear(); gemSegPosYErr.clear();
+  gemSegDirX.clear(); gemSegDirY.clear(); gemSegDirZ.clear();
+  gemSegDirXErr.clear(); gemSegDirYErr.clear(); gemSegChi2.clear(); gemSegNdof.clear();
+
   dtSegRawId.clear(); dtSegPosX.clear(); dtSegPosY.clear(); dtSegPosZ.clear();
   dtSegPosXErr.clear(); dtSegPosYErr.clear(); 
   dtSegDirX.clear(); dtSegDirY.clear(); dtSegDirZ.clear();
@@ -265,25 +299,28 @@ void DeepMuonRecoNtuplizer::clearVectors() {
 void DeepMuonRecoNtuplizer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup) {
   clearVectors();
   
-  edm::Handle<RPCRecHitCollection> rpcHandle;
-  iEvent.getByToken(rpcHitToken_, rpcHandle);
+  edm::Handle<RPCRecHitCollection> rpcHitHandle;
+  iEvent.getByToken(rpcHitToken_, rpcHitHandle);
 
-  edm::Handle<GEMRecHitCollection> gemHandle;
-  iEvent.getByToken(gemHitToken_, gemHandle);
+  edm::Handle<GEMRecHitCollection> gemHitHandle;
+  iEvent.getByToken(gemHitToken_, gemHitHandle);
 
-  edm::Handle<DTRecSegment4DCollection> dtHandle;
-  iEvent.getByToken(dtSegmentToken_, dtHandle);
+  edm::Handle<GEMSegmentCollection> gemSegHandle;
+  iEvent.getByToken(gemSegmentToken_, gemSegHandle);
 
-  edm::Handle<CSCSegmentCollection> cscHandle;
-  iEvent.getByToken(cscSegmentToken_, cscHandle);
+  edm::Handle<DTRecSegment4DCollection> dtSegHandle;
+  iEvent.getByToken(dtSegmentToken_, dtSegHandle);
+
+  edm::Handle<CSCSegmentCollection> cscSegHandle;
+  iEvent.getByToken(cscSegmentToken_, cscSegHandle);
 
   const auto& rpcGeom = iSetup.getData(rpcGeomToken_);
   const auto& gemGeom = iSetup.getData(gemGeomToken_);
   const auto& dtGeom  = iSetup.getData(dtGeomToken_);
   const auto& cscGeom = iSetup.getData(cscGeomToken_);
 
-  if (rpcHandle.isValid()) {
-    for (const auto &hit : *rpcHandle) {
+  if (rpcHitHandle.isValid()) {
+    for (const auto &hit : *rpcHitHandle) {
       RPCDetId rpcId(hit.geographicalId());
       const auto rpcDet = rpcGeom.idToDet(rpcId);
 
@@ -302,9 +339,13 @@ void DeepMuonRecoNtuplizer::analyze(const edm::Event& iEvent, const edm::EventSe
     }
   }
 
-  if (gemHandle.isValid()) {
-    for (const auto &hit : *gemHandle) {
+  if (gemHitHandle.isValid()) {
+    for (const auto &hit : *gemHitHandle) {
       GEMDetId gemId(hit.geographicalId());
+      
+      // Only Save GEM Hits in GE1/1, GE2/1 (No ME0)
+      if (gemId.isME0()) continue;
+      
       const auto gemDet = gemGeom.idToDet(gemId);
 
       LocalPoint localPos = hit.localPosition();
@@ -322,8 +363,41 @@ void DeepMuonRecoNtuplizer::analyze(const edm::Event& iEvent, const edm::EventSe
     }
   }
 
-  if (dtHandle.isValid()) {
-    for (const auto &seg : *dtHandle) {
+  if (gemSegHandle.isValid()) {
+    for (const auto &seg : *gemSegHandle) {
+      GEMDetId gemId(seg.geographicalId());
+      
+      // Only Save GEM Segments in ME0
+      if (!gemId.isME0()) continue;
+      
+      const auto gemDet = gemGeom.idToDet(gemId);
+
+      LocalPoint localPos = seg.localPosition();
+      LocalError localPosErr = seg.localPositionError();
+      GlobalPoint globalPos = gemDet->surface().toGlobal(localPos);
+
+      LocalVector localDir = seg.localDirection();
+      LocalError localDirErr = seg.localDirectionError();
+      GlobalVector globalDir = gemDet->surface().toGlobal(localDir);
+
+      gemSegRawId.push_back(seg.geographicalId());
+      gemSegPosX.push_back(globalPos.x());
+      gemSegPosY.push_back(globalPos.y());
+      gemSegPosZ.push_back(globalPos.z());
+      gemSegPosXErr.push_back(std::sqrt(localPosErr.xx()));
+      gemSegPosYErr.push_back(std::sqrt(localPosErr.yy()));
+      gemSegDirX.push_back(globalDir.x());
+      gemSegDirY.push_back(globalDir.y());
+      gemSegDirZ.push_back(globalDir.z());
+      gemSegDirXErr.push_back(std::sqrt(localDirErr.xx()));
+      gemSegDirYErr.push_back(std::sqrt(localDirErr.yy()));
+      gemSegChi2.push_back(seg.chi2());
+      gemSegNdof.push_back(seg.degreesOfFreedom());
+    }
+  }
+
+  if (dtSegHandle.isValid()) {
+    for (const auto &seg : *dtSegHandle) {
       DTChamberId dtId(seg.geographicalId());
       const auto dtDet = dtGeom.idToDet(dtId);
 
@@ -351,8 +425,8 @@ void DeepMuonRecoNtuplizer::analyze(const edm::Event& iEvent, const edm::EventSe
     }
   }
 
-  if (cscHandle.isValid()) {
-    for (const auto &seg : *cscHandle) {
+  if (cscSegHandle.isValid()) {
+    for (const auto &seg : *cscSegHandle) {
       CSCDetId cscId(seg.geographicalId());
       const auto cscDet = cscGeom.idToDet(cscId);
 
@@ -519,6 +593,7 @@ void DeepMuonRecoNtuplizer::fillDescriptions(edm::ConfigurationDescriptions& des
   
   desc.add<edm::InputTag>("rpcRecHits", edm::InputTag("rpcRecHits"));
   desc.add<edm::InputTag>("gemRecHits", edm::InputTag("gemRecHits"));
+  desc.add<edm::InputTag>("gemSegments", edm::InputTag("gemSegments"));
   desc.add<edm::InputTag>("dtSegments", edm::InputTag("dt4DSegments"));
   desc.add<edm::InputTag>("cscSegments", edm::InputTag("cscSegments"));
   
