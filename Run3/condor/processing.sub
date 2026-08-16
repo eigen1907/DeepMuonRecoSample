@@ -1,0 +1,20 @@
+universe = vanilla
+executable = run.sh
+arguments = $(stage) $(jobIndex) $(events) $(inputFile) $(pileup_list:NONE)
+environment = "DMR_CMSSW_BASE=$ENV(CMSSW_BASE)"
+
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+transfer_input_files = $(pileup_list:)
+transfer_output_files = output.root
+transfer_output_remaps = "output.root=$(output_dir)/$(stage)_$(jobIndex).root"
+
+request_cpus = 1
+request_memory = $(memory:8000MB)
+request_disk = $(disk:60GB)
+
+output = $(log_dir:logs)/$(stage)_$(ClusterId)_$(ProcId).out
+error = $(log_dir:logs)/$(stage)_$(ClusterId)_$(ProcId).err
+log = $(log_dir:logs)/$(stage)_$(ClusterId).log
+
+queue jobIndex,inputFile from $(input_list)
