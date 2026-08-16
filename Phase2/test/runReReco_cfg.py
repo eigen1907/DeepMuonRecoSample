@@ -106,7 +106,7 @@ process.schedule = cms.Schedule(process.raw2digi_step,process.reconstruction_ste
 from PhysicsTools.PatAlgos.tools.helpers import associatePatAlgosToolsTask
 associatePatAlgosToolsTask(process)
 
-from SLHCUpgradeSimulations.Configuration.aging import customise_aging_1000 
+from SLHCUpgradeSimulations.Configuration.aging import customise_aging_1000
 
 process = customise_aging_1000(process)
 
