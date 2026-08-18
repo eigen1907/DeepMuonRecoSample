@@ -13,8 +13,8 @@ request_cpus = 1
 request_memory = $(memory:8000MB)
 request_disk = $(disk:60GB)
 
-output = $(log_dir:logs)/$(stage)_$(ClusterId)_$(ProcId).out
-error = $(log_dir:logs)/$(stage)_$(ClusterId)_$(ProcId).err
-log = $(log_dir:logs)/$(stage)_$(ClusterId).log
+output = $(log_root:logs)/$(stage)/$(stage)_$(ClusterId)_$(ProcId).out
+error = $(log_root:logs)/$(stage)/$(stage)_$(ClusterId)_$(ProcId).err
+log = $(log_root:logs)/$(stage)/$(stage)_$(ClusterId).log
 
 queue jobIndex,inputFile from $(input_list)

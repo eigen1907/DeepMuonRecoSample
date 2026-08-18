@@ -6,6 +6,9 @@ Phase2/     Phase-2 configs and Condor submission
 Run3/       Run 3 configs and Condor submission
 ```
 
+The sample inspection notebook is
+`Ntuplizer/notebooks/check-ntuple.ipynb`.
+
 ## Phase-2
 
 Use `CMSSW_14_0_9`.
@@ -93,10 +96,6 @@ pileup mixing.
 Run 3 deliberately uses the same ntuple schema as Phase-2. Consequently,
 `track_is_matched_muon` does not distinguish a signal muon from a pileup muon.
 
-The default 1000-event MinBias sample is only for a local smoke test. For
-another job, use a separate directory and pass the same `jobIndex=N` to the
-first three configs.
-
 ### Run 3 Condor
 
 Run 3 is split into separate jobs and keeps every stage output:
@@ -107,32 +106,53 @@ signal GENSIM ─┐
 MinBias pool ──┘
 ```
 
+The production below creates 250 signal files with 1000 events per file. A
+shared MinBias pool contains 4,000 files with 1,000 events per file. With the
+Summer24 pileup profile, each MinBias event is reused about 45 times across
+all bunch crossings, or about 2.8 times for in-time pileup alone. Keeping
+every stage output requires roughly 15 TB.
+
 Submit each stage only after checking that the previous stage finished and its
 ROOT files were transferred successfully. Start from a built
 `CMSSW_14_0_21_patch1` environment:
 
 ```bash
 cd "$CMSSW_BASE/src/DeepMuonRecoSample/Run3/condor"
-campaign_dir=/hdfs/path/to/run3
-mkdir -p logs "$campaign_dir"/{gensim,minbias,digiraw,reco,ntuple}
+campaign_tag=production_v01
+campaign_dir="/hdfs/user/$USER/DeepMuonReco/Run3/$campaign_tag"
+log_root="$PWD/logs/$campaign_tag"
+mkdir -p "$log_root"/{gensim,minbias,digiraw,reco,ntuple} \
+  "$campaign_dir"/{gensim,minbias,digiraw,reco,ntuple}
 ```
 
-Generate the signal and the shared MinBias pool independently. The ranges are
-inclusive; choose the MinBias range and events per job for the campaign size.
+First check the exact submissions without queueing jobs:
+
+```bash
+condor_submit -dry-run /tmp/run3-gensim.ad -batch-name run3-gensim \
+  stage=gensim first_job=0 last_job=249 events=1000 \
+  log_root="$log_root" output_dir="$campaign_dir/gensim" generation.sub
+
+condor_submit -dry-run /tmp/run3-minbias.ad -batch-name run3-minbias \
+  stage=minbias first_job=0 last_job=3999 events=1000 \
+  log_root="$log_root" output_dir="$campaign_dir/minbias" generation.sub
+```
+
+If both dry runs succeed, submit the signal and MinBias productions:
 
 ```bash
 condor_submit -batch-name run3-gensim \
-  stage=gensim first_job=0 last_job=99 events=10 \
-  output_dir="$campaign_dir/gensim" generation.sub
+  stage=gensim first_job=0 last_job=249 events=1000 \
+  log_root="$log_root" output_dir="$campaign_dir/gensim" generation.sub
 
 condor_submit -batch-name run3-minbias \
-  stage=minbias first_job=0 last_job=99 events=1000 \
-  output_dir="$campaign_dir/minbias" generation.sub
+  stage=minbias first_job=0 last_job=3999 events=1000 \
+  log_root="$log_root" output_dir="$campaign_dir/minbias" generation.sub
 ```
 
 After both productions finish, create the shared pileup list and the indexed
 signal input list. The pileup list contains CMSSW file names; the indexed list
-contains `JOB_INDEX ABSOLUTE_PATH` on each line.
+contains `JOB_INDEX ABSOLUTE_PATH` on each line. Their line counts must be
+4,000 and 250 respectively.
 
 ```bash
 find "$campaign_dir/minbias" -type f -name 'minbias_*.root' -size +1000c \
@@ -142,10 +162,17 @@ find "$campaign_dir/gensim" -type f -name 'gensim_*.root' -size +1000c \
   | sed -E 's#.*/gensim_([0-9]+)\.root#\1 &#' \
   | sort -n > inputs-gensim.txt
 
-condor_submit -batch-name run3-digiraw \
-  stage=digiraw events=10 input_list="$PWD/inputs-gensim.txt" \
+wc -l inputs-minbias.txt inputs-gensim.txt
+
+condor_submit -dry-run /tmp/run3-digiraw.ad -batch-name run3-digiraw \
+  stage=digiraw events=-1 input_list="$PWD/inputs-gensim.txt" \
   pileup_list="$PWD/inputs-minbias.txt" \
-  output_dir="$campaign_dir/digiraw" processing.sub
+  log_root="$log_root" output_dir="$campaign_dir/digiraw" processing.sub
+
+condor_submit -batch-name run3-digiraw \
+  stage=digiraw events=-1 input_list="$PWD/inputs-gensim.txt" \
+  pileup_list="$PWD/inputs-minbias.txt" \
+  log_root="$log_root" output_dir="$campaign_dir/digiraw" processing.sub
 ```
 
 Build the next indexed list after each stage succeeds:
@@ -155,22 +182,35 @@ find "$campaign_dir/digiraw" -type f -name 'digiraw_*.root' -size +1000c \
   | sed -E 's#.*/digiraw_([0-9]+)\.root#\1 &#' \
   | sort -n > inputs-digiraw.txt
 
+wc -l inputs-digiraw.txt
+
+condor_submit -dry-run /tmp/run3-reco.ad -batch-name run3-reco \
+  stage=reco events=-1 input_list="$PWD/inputs-digiraw.txt" \
+  log_root="$log_root" output_dir="$campaign_dir/reco" processing.sub
+
 condor_submit -batch-name run3-reco \
   stage=reco events=-1 input_list="$PWD/inputs-digiraw.txt" \
-  output_dir="$campaign_dir/reco" processing.sub
+  log_root="$log_root" output_dir="$campaign_dir/reco" processing.sub
 
 find "$campaign_dir/reco" -type f -name 'reco_*.root' -size +1000c \
   | sed -E 's#.*/reco_([0-9]+)\.root#\1 &#' \
   | sort -n > inputs-reco.txt
 
+wc -l inputs-reco.txt
+
+condor_submit -dry-run /tmp/run3-ntuple.ad -batch-name run3-ntuple \
+  stage=ntuple events=-1 input_list="$PWD/inputs-reco.txt" \
+  log_root="$log_root" output_dir="$campaign_dir/ntuple" processing.sub
+
 condor_submit -batch-name run3-ntuple \
   stage=ntuple events=-1 input_list="$PWD/inputs-reco.txt" \
-  output_dir="$campaign_dir/ntuple" processing.sub
+  log_root="$log_root" output_dir="$campaign_dir/ntuple" processing.sub
 ```
 
-The retained files are `gensim/gensim_INDEX.root`,
-`minbias/minbias_INDEX.root`, `digiraw/digiraw_INDEX.root`,
-`reco/reco_INDEX.root`, and `ntuple/ntuple_INDEX.root`. Do not assign one
-signal job index to two different event chunks; retrying the same failed job
-should reuse its index. Submit and worker nodes must see the same CMSSW project
-and mounted HDFS paths.
+The expected result is 250 files in each signal stage and 4,000 MinBias files:
+`gensim/gensim_INDEX.root`, `minbias/minbias_INDEX.root`,
+`digiraw/digiraw_INDEX.root`, `reco/reco_INDEX.root`, and
+`ntuple/ntuple_INDEX.root`. The dry runs validate Condor expansion only; they
+do not run CMSSW. Do not assign one signal job index to two different event
+chunks; retrying the same failed job should reuse its index. Submit and worker
+nodes must see the same CMSSW project and mounted HDFS paths.
