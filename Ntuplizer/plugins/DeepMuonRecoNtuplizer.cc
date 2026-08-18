@@ -166,7 +166,7 @@ void DeepMuonRecoNtuplizer::beginJob() {
   tree_->Branch("track_vy", &trackVy);
   tree_->Branch("track_vz", &trackVz);
   tree_->Branch("track_qoverp", &trackQOverP);
-  tree_->Branch("track_lamda", &trackLambda);
+  tree_->Branch("track_lambda", &trackLambda);
   tree_->Branch("track_dxy", &trackDxy);
   tree_->Branch("track_dsz", &trackDsz);
   tree_->Branch("track_qoverp_err", &trackQOverPErr);
