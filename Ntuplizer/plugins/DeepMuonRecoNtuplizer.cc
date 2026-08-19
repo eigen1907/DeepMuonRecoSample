@@ -57,6 +57,8 @@ private:
 
   void clearVectors();
 
+  bool isMC_;
+
   edm::EDGetTokenT<reco::MuonCollection> muonToken_;
   edm::EDGetTokenT<reco::TrackCollection> trackToken_;
   edm::EDGetTokenT<TrackingParticleCollection> tpToken_;
@@ -134,7 +136,8 @@ private:
 };
 
 DeepMuonRecoNtuplizer::DeepMuonRecoNtuplizer(const edm::ParameterSet& iConfig)
-  : muonToken_(consumes<reco::MuonCollection>(iConfig.getParameter<edm::InputTag>("muons"))),
+  : isMC_(iConfig.getParameter<bool>("isMC")),
+    muonToken_(consumes<reco::MuonCollection>(iConfig.getParameter<edm::InputTag>("muons"))),
     trackToken_(consumes<reco::TrackCollection>(iConfig.getParameter<edm::InputTag>("tracks"))),
     tpToken_(consumes<TrackingParticleCollection>(iConfig.getParameter<edm::InputTag>("trackingParticles"))),
     associatorToken_(consumes<reco::TrackToTrackingParticleAssociator>(iConfig.getParameter<edm::InputTag>("associator"))),
@@ -462,23 +465,29 @@ void DeepMuonRecoNtuplizer::analyze(const edm::Event& iEvent, const edm::EventSe
   iEvent.getByToken(trackToken_, tracks);
 
   edm::Handle<TrackingParticleCollection> tps;
-  iEvent.getByToken(tpToken_, tps);
+  std::unique_ptr<reco::RecoToSimCollection> recoToSims;
 
-  edm::Handle<reco::TrackToTrackingParticleAssociator> associatorHandle;
-  iEvent.getByToken(associatorToken_, associatorHandle);
-  const auto& associator = *associatorHandle;
+  if (isMC_) {
+    iEvent.getByToken(tpToken_, tps);
 
-  edm::RefToBaseVector<reco::Track> trackRefs;
-  for (size_t i = 0; i < tracks->size(); ++i) {
-    trackRefs.push_back(edm::RefToBase<reco::Track>(reco::TrackRef(tracks, i)));
+    edm::Handle<reco::TrackToTrackingParticleAssociator> associatorHandle;
+    iEvent.getByToken(associatorToken_, associatorHandle);
+    const auto& associator = *associatorHandle;
+
+    edm::RefToBaseVector<reco::Track> trackRefs;
+    for (size_t i = 0; i < tracks->size(); ++i) {
+      trackRefs.push_back(
+          edm::RefToBase<reco::Track>(reco::TrackRef(tracks, i)));
+    }
+
+    edm::RefVector<TrackingParticleCollection> tpRefs;
+    for (size_t i = 0; i < tps->size(); ++i) {
+      tpRefs.push_back(TrackingParticleRef(tps, i));
+    }
+
+    recoToSims = std::make_unique<reco::RecoToSimCollection>(
+        associator.associateRecoToSim(trackRefs, tpRefs));
   }
-  
-  edm::RefVector<TrackingParticleCollection> tpRefs;
-  for (size_t i = 0; i < tps->size(); ++i) {
-    tpRefs.push_back(TrackingParticleRef(tps, i));
-  }
-
-  reco::RecoToSimCollection recoToSims = associator.associateRecoToSim(trackRefs, tpRefs);
   
   std::map<unsigned int, const reco::Muon*> trackToMuonMap;
   for (const auto& mu : *muons) {
@@ -540,25 +549,35 @@ void DeepMuonRecoNtuplizer::analyze(const edm::Event& iEvent, const edm::EventSe
     trackIsGlbMuon.push_back(isGlbMuon);
     trackIsPFMuon.push_back(isPFMuon);
 
-    int isMatchedMuon = 0;
+    int isMatchedMuon = -1;
     int matchedTpIdx = -1;
-    float matchQual = 0.0;
-    edm::RefToBase<reco::Track> trkRefBase(trkRef);
-    if (recoToSims.find(trkRefBase) != recoToSims.end()) {
-      const auto& tpQualPairs = recoToSims[trkRefBase];
-      if (!tpQualPairs.empty()) {
-        const auto& tpQualPair = tpQualPairs.front();
-        const auto& bestTpRef = tpQualPair.first;
-        matchQual = tpQualPair.second;
-        
-        if (std::abs(bestTpRef->pdgId()) == 13 && bestTpRef->status() == 1) {
-          isMatchedMuon = 1;
-        }
-        
-        for(size_t k = 0; k < tps->size(); ++k) {
-          if(bestTpRef == TrackingParticleRef(tps, k)) {
-            matchedTpIdx = k;
-            break;
+    float matchQual = -1.0f;
+
+    if (isMC_) {
+      isMatchedMuon = 0;
+      matchQual = 0.0f;
+
+      edm::RefToBase<reco::Track> trkRefBase(trkRef);
+
+      if (recoToSims->find(trkRefBase) != recoToSims->end()) {
+        const auto& tpQualPairs = (*recoToSims)[trkRefBase];
+
+        if (!tpQualPairs.empty()) {
+          const auto& tpQualPair = tpQualPairs.front();
+          const auto& bestTpRef = tpQualPair.first;
+
+          matchQual = tpQualPair.second;
+
+          if (std::abs(bestTpRef->pdgId()) == 13 &&
+              bestTpRef->status() == 1) {
+            isMatchedMuon = 1;
+          }
+
+          for (size_t k = 0; k < tps->size(); ++k) {
+            if (bestTpRef == TrackingParticleRef(tps, k)) {
+              matchedTpIdx = k;
+              break;
+            }
           }
         }
       }
@@ -569,14 +588,17 @@ void DeepMuonRecoNtuplizer::analyze(const edm::Event& iEvent, const edm::EventSe
     trackMatchQuality.push_back(matchQual);
   }
 
-  for (size_t i = 0; i < tps->size(); ++i) {
-    TrackingParticleRef tpRef(tps, i);
-    tpPt.push_back(tpRef->pt());
-    tpEta.push_back(tpRef->eta());
-    tpPhi.push_back(tpRef->phi());
-    tpPdgId.push_back(tpRef->pdgId());
-    tpCharge.push_back(tpRef->charge());
-    tpStatus.push_back(tpRef->status());
+  if (isMC_) {
+    for (size_t i = 0; i < tps->size(); ++i) {
+      TrackingParticleRef tpRef(tps, i);
+
+      tpPt.push_back(tpRef->pt());
+      tpEta.push_back(tpRef->eta());
+      tpPhi.push_back(tpRef->phi());
+      tpPdgId.push_back(tpRef->pdgId());
+      tpCharge.push_back(tpRef->charge());
+      tpStatus.push_back(tpRef->status());
+    }
   }
 
   tree_->Fill();
@@ -586,17 +608,20 @@ void DeepMuonRecoNtuplizer::endJob() {}
 
 void DeepMuonRecoNtuplizer::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
   edm::ParameterSetDescription desc;
+
+  desc.add<bool>("isMC", true);
+
   desc.add<edm::InputTag>("muons", edm::InputTag("muons"));
   desc.add<edm::InputTag>("tracks", edm::InputTag("generalTracks"));
   desc.add<edm::InputTag>("trackingParticles", edm::InputTag("mix", "MergedTrackTruth"));
   desc.add<edm::InputTag>("associator", edm::InputTag("quickTrackAssociatorByHits"));
-  
+
   desc.add<edm::InputTag>("rpcRecHits", edm::InputTag("rpcRecHits"));
   desc.add<edm::InputTag>("gemRecHits", edm::InputTag("gemRecHits"));
   desc.add<edm::InputTag>("gemSegments", edm::InputTag("gemSegments"));
   desc.add<edm::InputTag>("dtSegments", edm::InputTag("dt4DSegments"));
   desc.add<edm::InputTag>("cscSegments", edm::InputTag("cscSegments"));
-  
+
   descriptions.add("deepMuonRecoNtuplizer", desc);
 }
 
