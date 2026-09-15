@@ -1,7 +1,7 @@
 universe = vanilla
-executable = run.sh
-arguments = $(cfg:runReReco_cfg.py) $(inputFile) $(max_events)
-environment = "DMR_CMSSW_BASE=$ENV(CMSSW_BASE)"
+executable = $(condor_dir)/run_phase2.sh
+arguments = $(cfg:run_rereco_cfg.py) $(inputFile) $(max_events)
+environment = "DMR_CMSSW_BASE=$(cmssw_base)"
 
 should_transfer_files = YES
 when_to_transfer_output = ON_EXIT
@@ -12,8 +12,8 @@ request_cpus = 1
 request_memory = $(memory:8000MB)
 request_disk = $(disk:60GB)
 
-output = $(log_dir:logs)/$(label:output)_$(ClusterId)_$(ProcId).out
-error = $(log_dir:logs)/$(label:output)_$(ClusterId)_$(ProcId).err
-log = $(log_dir:logs)/$(label:output)_$(ClusterId).log
+output = $(log_dir)/$(label:output)_$(ClusterId)_$(ProcId).out
+error = $(log_dir)/$(label:output)_$(ClusterId)_$(ProcId).err
+log = $(log_dir)/$(label:output)_$(ClusterId).log
 
 queue inputFile from $(input_list)
