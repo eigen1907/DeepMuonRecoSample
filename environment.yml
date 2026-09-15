@@ -1,0 +1,12 @@
+name: deepmuonreco-sample-py312
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - numpy
+  - awkward
+  - matplotlib
+  - uproot
+  - hist
+  - ipykernel
+  - mplhep
