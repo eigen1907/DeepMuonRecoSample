@@ -1,216 +1,110 @@
-# DeepMuonReco sample
+# DeepMuonRecoSample
+
+DeepMuonReco 학습용 Ntuple을 만드는 CMSSW 패키지입니다.
 
 ```text
-Ntuplizer/  shared plugin and notebook
-Phase2/     Phase-2 configs and Condor submission
-Run3/       Run 3 configs and Condor submission
+Ntuplizer/                     analyzer와 확인 notebook
+Run3/
+├── inputs/                    data ROOT 파일 목록
+├── test/                      CMSSW 설정 파일
+└── condor/
+    ├── submit_data.py         data 제출 명령
+    ├── submit_data.sub        data Condor 설정
+    ├── run_data.sh            data worker
+    ├── submit_mc_gensim.sub   MC GENSIM 제출 설정
+    ├── submit_mc_processing.sub
+    └── run_mc.sh              MC worker
+Phase2/                        Phase-2 설정과 Condor 코드
 ```
 
-The sample inspection notebook is
-`Ntuplizer/notebooks/check-ntuple.ipynb`.
+`plugins/`, `python/`, `test/`는 CMSSW 표준 디렉터리 이름입니다.
 
-## Phase-2
+## Muon0 2024 CDE data
 
-Use `CMSSW_14_0_9`.
+입력 목록은 ROOT 경로를 한 줄에 하나씩 적습니다.
+
+```text
+Run3/inputs/data-run3-muon0-2024cde-v001.txt
+```
+
+현재 목록에는 Run2024C/D/E AOD 파일 14개가 들어 있습니다. 다른 입력을
+처리하려면 목록을 복사하고 `v002`처럼 production 버전을 올린 뒤
+`/store/...root` 경로를 한 줄씩 적습니다. event 수는 작성하지 않습니다.
+
+환경과 인증을 준비합니다.
 
 ```bash
 source /cvmfs/cms.cern.ch/cmsset_default.sh
-cd /path/to/CMSSW_14_0_9/src
+cd /afs/cern.ch/user/j/joshin/workspace/deepmuonreco/CMSSW_14_0_21_patch1/src
 cmsenv
 scram b -j 8
 
-cmsRun "$CMSSW_BASE/src/DeepMuonRecoSample/Phase2/test/runReReco_cfg.py" \
-  inputFiles=file:/path/to/input.root outputFile=rereco.root maxEvents=-1
-
-cmsRun "$CMSSW_BASE/src/DeepMuonRecoSample/Phase2/test/runDeepMuonRecoNtuplizer_cfg.py" \
-  inputFiles=file:rereco.root outputFile=ntuple.root maxEvents=-1
+kinit "$USER@CERN.CH"
+voms-proxy-init --voms cms --valid 192:00
 ```
 
-The Phase-2 physics configuration and ntuple schema are unchanged; only the
-paths moved under `Phase2/`.
-
-### Phase-2 Condor
-
-The same submit file is used for ReReco and ntuple jobs. Each line of the input
-list is one absolute ROOT file path.
+아래 명령 하나가 각 파일의 event 수를 읽고, 최대 250,000 events를 1,000
+events씩 나눈 뒤 요약을 보여줍니다. 입력이 250,000 events보다 적으면 있는
+만큼 전부 사용합니다. `y`를 입력해야 실제로 제출됩니다.
 
 ```bash
-cd "$CMSSW_BASE/src/DeepMuonRecoSample/Phase2/condor"
-mkdir -p logs /hdfs/path/to/rereco
-find /hdfs/path/to/official-input -type f -name '*.root' -size +1000c \
-  | sort > inputs-rereco.txt
-
-condor_submit -batch-name phase2-rereco \
-  cfg=runReReco_cfg.py label=rereco max_events=-1 \
-  input_list="$PWD/inputs-rereco.txt" output_dir=/hdfs/path/to/rereco \
-  submit.sub
+cd DeepMuonRecoSample/Run3/condor
+./submit_data.py
 ```
 
-Submit and worker nodes must see the same CMSSW project path.
+출력 이름은 job 순서대로 `ntuple-0000.root`, `ntuple-0001.root`, ...가 됩니다.
+입력 파일과 event 구간은 작업 디렉터리의 `jobs.tsv`에 기록됩니다.
 
-After ReReco finishes, make a new input list and change only the cfg and output
-directory:
-
-```bash
-mkdir -p /hdfs/path/to/ntuples
-find /hdfs/path/to/rereco -type f -name '*.root' | sort > inputs-ntuple.txt
-
-condor_submit -batch-name phase2-ntuple \
-  cfg=runDeepMuonRecoNtuplizer_cfg.py label=ntuple max_events=-1 \
-  input_list="$PWD/inputs-ntuple.txt" output_dir=/hdfs/path/to/ntuples \
-  submit.sub
-```
-
-## Run 3
-
-Use `CMSSW_14_0_21_patch1` with the package linked into its `src` directory.
-
-```bash
-source /cvmfs/cms.cern.ch/cmsset_default.sh
-scram project CMSSW CMSSW_14_0_21_patch1
-cd CMSSW_14_0_21_patch1/src
-ln -s /absolute/path/to/DeepMuonRecoSample DeepMuonRecoSample
-cmsenv
-scram b -j 8
-```
-
-Change to an empty working directory, then run the five configs:
-
-```bash
-mkdir -p /path/to/run3-work
-cd /path/to/run3-work
-
-cmsRun "$CMSSW_BASE/src/DeepMuonRecoSample/Run3/test/runGENSIM_cfg.py"
-cmsRun "$CMSSW_BASE/src/DeepMuonRecoSample/Run3/test/runMinBiasGENSIM_cfg.py"
-cmsRun "$CMSSW_BASE/src/DeepMuonRecoSample/Run3/test/runDIGIRAW_cfg.py"
-cmsRun "$CMSSW_BASE/src/DeepMuonRecoSample/Run3/test/runRECO_cfg.py"
-cmsRun "$CMSSW_BASE/src/DeepMuonRecoSample/Run3/test/runDeepMuonRecoNtuplizer_cfg.py"
-```
-
-The default files are `gensim.root`, `minbias.root`, `digiraw.root`,
-`reco.root`, and `ntuple.root`. The Run 3 setup uses the official
-`SingleMuFlatPt2To100` gun and generates TuneCP5 13.6 TeV MinBias events with
-the local fragment. DIGI then reads those MinBias files for direct Summer24
-pileup mixing.
-
-Run 3 deliberately uses the same ntuple schema as Phase-2. Consequently,
-`track_is_matched_muon` does not distinguish a signal muon from a pileup muon.
-
-### Run 3 Condor
-
-Run 3 is split into separate jobs and keeps every stage output:
+작업과 출력 경로는 production ID로 연결됩니다.
 
 ```text
-signal GENSIM ─┐
-               ├─> DIGIRAW ─> RECO ─> Ntuple
-MinBias pool ──┘
+/afs/cern.ch/user/j/joshin/workspace/deepmuonreco/prod/<production-id>/
+/eos/user/j/joshin/deepmuonreco/<production-id>/
 ```
 
-The production below creates 250 signal files with 1000 events per file. A
-shared MinBias pool contains 4,000 files with 1,000 events per file. With the
-Summer24 pileup profile, each MinBias event is reused about 45 times across
-all bunch crossings, or about 2.8 times for in-time pileup alone. Keeping
-every stage output requires roughly 15 TB.
+같은 명령을 다시 실행하면 다음과 같이 동작합니다.
 
-Submit each stage only after checking that the previous stage finished and its
-ROOT files were transferred successfully. Start from a built
-`CMSSW_14_0_21_patch1` environment:
+- Condor에 같은 production이 남아 있으면 제출하지 않습니다.
+- queue가 끝났고 ROOT 파일이 빠졌다면 missing jobs만 다시 제출합니다.
+- 모든 ROOT 파일이 있으면 아무것도 제출하지 않습니다.
+- production의 입력 목록은 생성 후 변경하지 않습니다. 입력을 바꾸려면 production
+  버전을 올려 새 목록을 만듭니다.
+
+상태와 로그는 다음 위치에서 확인합니다.
 
 ```bash
-cd "$CMSSW_BASE/src/DeepMuonRecoSample/Run3/condor"
-campaign_tag=production_v01
-campaign_dir="/hdfs/user/$USER/DeepMuonReco/Run3/$campaign_tag"
-log_root="$PWD/logs/$campaign_tag"
-mkdir -p "$log_root"/{gensim,minbias,digiraw,reco,ntuple} \
-  "$campaign_dir"/{gensim,minbias,digiraw,reco,ntuple}
+condor_q -batch
+condor_q -hold
+
+ls /afs/cern.ch/user/j/joshin/workspace/deepmuonreco/prod/data-run3-muon0-2024cde-v001/logs
+ls /eos/user/j/joshin/deepmuonreco/data-run3-muon0-2024cde-v001
 ```
 
-First check the exact submissions without queueing jobs:
+기존 250,000-event 결과와 로그는 그대로 보존했습니다.
+
+```text
+/eos/user/j/joshin/deepmuonreco/Run3/Muon0_2024CDE/muon0_cde_v01/ntuple/
+/afs/cern.ch/user/j/joshin/workspace/deepmuonreco/prod/run3-data-muon0-2024cde-250k-v001/logs/
+```
+
+## UOS
+
+UOS에서는 worker가 볼 수 있는 경로만 지정하고 같은 명령을 사용합니다.
 
 ```bash
-condor_submit -dry-run /tmp/run3-gensim.ad -batch-name run3-gensim \
-  stage=gensim first_job=0 last_job=249 events=1000 \
-  log_root="$log_root" output_dir="$campaign_dir/gensim" generation.sub
+export DMR_WORK_ROOT=/path/to/deepmuonreco/prod
+export DMR_OUTPUT_ROOT=/hdfs/your/path/deepmuonreco
 
-condor_submit -dry-run /tmp/run3-minbias.ad -batch-name run3-minbias \
-  stage=minbias first_job=0 last_job=3999 events=1000 \
-  log_root="$log_root" output_dir="$campaign_dir/minbias" generation.sub
+./submit_data.py --site uos
 ```
 
-If both dry runs succeed, submit the signal and MinBias productions:
+## MC와 Phase-2
 
-```bash
-condor_submit -batch-name run3-gensim \
-  stage=gensim first_job=0 last_job=249 events=1000 \
-  log_root="$log_root" output_dir="$campaign_dir/gensim" generation.sub
+Run 3 MC는 `GENSIM + MinBias -> DIGIRAW -> RECO -> Ntuple` 순서이며
+`Run3/condor/submit_mc_gensim.sub`, `submit_mc_processing.sub`,
+`run_mc.sh`을 사용합니다.
 
-condor_submit -batch-name run3-minbias \
-  stage=minbias first_job=0 last_job=3999 events=1000 \
-  log_root="$log_root" output_dir="$campaign_dir/minbias" generation.sub
-```
+Phase-2는 `CMSSW_14_0_9`에서 `Phase2/test/run_rereco_cfg.py` 실행 후
+`Phase2/test/run_ntuple_cfg.py`를 실행합니다.
 
-After both productions finish, create the shared pileup list and the indexed
-signal input list. The pileup list contains CMSSW file names; the indexed list
-contains `JOB_INDEX ABSOLUTE_PATH` on each line. Their line counts must be
-4,000 and 250 respectively.
-
-```bash
-find "$campaign_dir/minbias" -type f -name 'minbias_*.root' -size +1000c \
-  | sort | sed 's#^#file:#' > inputs-minbias.txt
-
-find "$campaign_dir/gensim" -type f -name 'gensim_*.root' -size +1000c \
-  | sed -E 's#.*/gensim_([0-9]+)\.root#\1 &#' \
-  | sort -n > inputs-gensim.txt
-
-wc -l inputs-minbias.txt inputs-gensim.txt
-
-condor_submit -dry-run /tmp/run3-digiraw.ad -batch-name run3-digiraw \
-  stage=digiraw events=-1 input_list="$PWD/inputs-gensim.txt" \
-  pileup_list="$PWD/inputs-minbias.txt" \
-  log_root="$log_root" output_dir="$campaign_dir/digiraw" processing.sub
-
-condor_submit -batch-name run3-digiraw \
-  stage=digiraw events=-1 input_list="$PWD/inputs-gensim.txt" \
-  pileup_list="$PWD/inputs-minbias.txt" \
-  log_root="$log_root" output_dir="$campaign_dir/digiraw" processing.sub
-```
-
-Build the next indexed list after each stage succeeds:
-
-```bash
-find "$campaign_dir/digiraw" -type f -name 'digiraw_*.root' -size +1000c \
-  | sed -E 's#.*/digiraw_([0-9]+)\.root#\1 &#' \
-  | sort -n > inputs-digiraw.txt
-
-wc -l inputs-digiraw.txt
-
-condor_submit -dry-run /tmp/run3-reco.ad -batch-name run3-reco \
-  stage=reco events=-1 input_list="$PWD/inputs-digiraw.txt" \
-  log_root="$log_root" output_dir="$campaign_dir/reco" processing.sub
-
-condor_submit -batch-name run3-reco \
-  stage=reco events=-1 input_list="$PWD/inputs-digiraw.txt" \
-  log_root="$log_root" output_dir="$campaign_dir/reco" processing.sub
-
-find "$campaign_dir/reco" -type f -name 'reco_*.root' -size +1000c \
-  | sed -E 's#.*/reco_([0-9]+)\.root#\1 &#' \
-  | sort -n > inputs-reco.txt
-
-wc -l inputs-reco.txt
-
-condor_submit -dry-run /tmp/run3-ntuple.ad -batch-name run3-ntuple \
-  stage=ntuple events=-1 input_list="$PWD/inputs-reco.txt" \
-  log_root="$log_root" output_dir="$campaign_dir/ntuple" processing.sub
-
-condor_submit -batch-name run3-ntuple \
-  stage=ntuple events=-1 input_list="$PWD/inputs-reco.txt" \
-  log_root="$log_root" output_dir="$campaign_dir/ntuple" processing.sub
-```
-
-The expected result is 250 files in each signal stage and 4,000 MinBias files:
-`gensim/gensim_INDEX.root`, `minbias/minbias_INDEX.root`,
-`digiraw/digiraw_INDEX.root`, `reco/reco_INDEX.root`, and
-`ntuple/ntuple_INDEX.root`. The dry runs validate Condor expansion only; they
-do not run CMSSW. Do not assign one signal job index to two different event
-chunks; retrying the same failed job should reuse its index. Submit and worker
-nodes must see the same CMSSW project and mounted HDFS paths.
+Ntuple 확인 notebook은 `Ntuplizer/notebooks/check-ntuple.ipynb`입니다.
