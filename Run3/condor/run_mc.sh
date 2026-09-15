@@ -24,25 +24,25 @@ cfg_dir="${DMR_CMSSW_BASE}/src/DeepMuonRecoSample/Run3/test"
 
 case "${stage}" in
     gensim)
-        cmsRun "${cfg_dir}/runGENSIM_cfg.py" \
+        cmsRun "${cfg_dir}/run_mc_signal_gensim_cfg.py" \
             maxEvents="${events}" jobIndex="${job_index}" outputFile=output.root
         ;;
     minbias)
-        cmsRun "${cfg_dir}/runMinBiasGENSIM_cfg.py" \
+        cmsRun "${cfg_dir}/run_mc_minbias_gensim_cfg.py" \
             maxEvents="${events}" jobIndex="${job_index}" outputFile=output.root
         ;;
     digiraw)
         pileup_list="${pileup_list##*/}"
-        cmsRun "${cfg_dir}/runDIGIRAW_cfg.py" \
+        cmsRun "${cfg_dir}/run_mc_digiraw_cfg.py" \
             inputFiles="file:${input_file}" secondaryInputList="${pileup_list}" \
             maxEvents="${events}" jobIndex="${job_index}" outputFile=output.root
         ;;
     reco)
-        cmsRun "${cfg_dir}/runRECO_cfg.py" \
+        cmsRun "${cfg_dir}/run_mc_reco_cfg.py" \
             inputFiles="file:${input_file}" maxEvents="${events}" outputFile=output.root
         ;;
     ntuple)
-        cmsRun "${cfg_dir}/runDeepMuonRecoNtuplizer_cfg.py" \
+        cmsRun "${cfg_dir}/run_ntuple_cfg.py" \
             inputFiles="file:${input_file}" maxEvents="${events}" outputFile=output.root
         ;;
     *)

@@ -19,6 +19,14 @@ options.register(
     "Run on MC if True, collision data if False",
 )
 
+options.register(
+    "skipEvents",
+    0,
+    VarParsing.multiplicity.singleton,
+    VarParsing.varType.int,
+    "Number of input events to skip before processing",
+)
+
 options.parseArguments()
 
 
@@ -33,7 +41,7 @@ process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
 if options.isMC:
     global_tag = "140X_mcRun3_2024_realistic_v26"
 else:
-    global_tag = "140X_dataRun3_v17"
+    global_tag = "140X_dataRun3_v20"
 
 process.GlobalTag = GlobalTag(
     process.GlobalTag,
@@ -49,6 +57,7 @@ process.maxEvents = cms.untracked.PSet(
 process.source = cms.Source(
     "PoolSource",
     fileNames=cms.untracked.vstring(options.inputFiles),
+    skipEvents=cms.untracked.uint32(options.skipEvents),
 )
 
 

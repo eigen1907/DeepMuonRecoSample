@@ -1,0 +1,19 @@
+# Run2024C
+/store/data/Run2024C/Muon0/AOD/2024CDEReprocessing-v1/25420000/79a5e7f8-08de-4296-8dba-66f56a0269fe.root
+/store/data/Run2024C/Muon0/AOD/2024CDEReprocessing-v1/130000/1168c907-d411-4c21-8810-18f42de861e7.root
+/store/data/Run2024C/Muon0/AOD/2024CDEReprocessing-v1/2550000/8131e5f6-4135-4d53-a9e4-b46d93d8b168.root
+/store/data/Run2024C/Muon0/AOD/2024CDEReprocessing-v1/2550000/7f979661-e6f8-431e-aef7-8388c718a920.root
+
+# Run2024D
+/store/data/Run2024D/Muon0/AOD/2024CDEReprocessing-v1/2550000/f6b14231-04f1-4a33-b3fc-28e3d6b491c6.root
+/store/data/Run2024D/Muon0/AOD/2024CDEReprocessing-v1/2820000/0b1ca7bd-170b-4f5c-8121-d04108fd9104.root
+/store/data/Run2024D/Muon0/AOD/2024CDEReprocessing-v1/140000/558a4857-f078-4752-9bd3-a3a9d242f764.root
+/store/data/Run2024D/Muon0/AOD/2024CDEReprocessing-v1/110000/9c65c436-2970-46bd-9374-9eb330676fba.root
+
+# Run2024E
+/store/data/Run2024E/Muon0/AOD/2024CDEReprocessing-v1/140001/fe000d50-7e40-44ce-b86d-e80e8ffa6b75.root
+/store/data/Run2024E/Muon0/AOD/2024CDEReprocessing-v1/28110000/23d74d9f-62a7-4a59-8f66-73f7b7885248.root
+/store/data/Run2024E/Muon0/AOD/2024CDEReprocessing-v1/2550000/9ef3062b-a444-461e-900c-e866b92fbdfb.root
+/store/data/Run2024E/Muon0/AOD/2024CDEReprocessing-v1/28110000/dc166157-ddf4-413a-a0b4-1094e91a6867.root
+/store/data/Run2024E/Muon0/AOD/2024CDEReprocessing-v1/2820000/39e474cf-79ac-4ec5-8607-d322485065a1.root
+/store/data/Run2024E/Muon0/AOD/2024CDEReprocessing-v1/130001/89cf19ad-f27b-42cf-b048-4988d43a121c.root

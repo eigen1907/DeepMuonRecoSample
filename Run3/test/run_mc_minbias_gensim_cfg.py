@@ -2,7 +2,7 @@
 # using:
 # Revision: 1.19
 # Source: /local/reps/CMSSW/CMSSW/Configuration/Applications/python/ConfigBuilder.py,v
-# with command line options: DeepMuonRecoSample/Run3/MinBias_TuneCP5_13p6TeV_pythia8_cfi.py --eventcontent RAWSIM --datatier GEN-SIM --conditions 140X_mcRun3_2024_realistic_v26 --beamspot DBrealistic --step GEN,SIM --geometry DB:Extended --era Run3_2024 --fileout file:minbias.root --mc --number 10 --no_exec
+# with command line options: DeepMuonRecoSample/Run3/minbias_tunecp5_13p6tev_pythia8_cfi.py --eventcontent RAWSIM --datatier GEN-SIM --conditions 140X_mcRun3_2024_realistic_v26 --beamspot DBrealistic --step GEN,SIM --geometry DB:Extended --era Run3_2024 --fileout file:minbias.root --mc --number 10 --no_exec
 import FWCore.ParameterSet.Config as cms
 
 from Configuration.Eras.Era_Run3_2024_cff import Run3_2024
@@ -79,7 +79,7 @@ process.options = cms.untracked.PSet(
 
 # Production Info
 process.configurationMetadata = cms.untracked.PSet(
-    annotation = cms.untracked.string('DeepMuonRecoSample/Run3/MinBias_TuneCP5_13p6TeV_pythia8_cfi.py nevts:10'),
+    annotation = cms.untracked.string('DeepMuonRecoSample/Run3/minbias_tunecp5_13p6tev_pythia8_cfi.py nevts:10'),
     name = cms.untracked.string('Applications'),
     version = cms.untracked.string('$Revision: 1.19 $')
 )

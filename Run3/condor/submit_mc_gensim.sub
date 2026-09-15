@@ -1,7 +1,7 @@
 universe = vanilla
-executable = run.sh
+executable = $(condor_dir)/run_mc.sh
 arguments = $(stage) $(jobIndex) $(events) - -
-environment = "DMR_CMSSW_BASE=$ENV(CMSSW_BASE)"
+environment = "DMR_CMSSW_BASE=$(cmssw_base)"
 
 should_transfer_files = YES
 when_to_transfer_output = ON_EXIT
@@ -12,8 +12,8 @@ request_cpus = 1
 request_memory = $(memory:8000MB)
 request_disk = $(disk:60GB)
 
-output = $(log_root:logs)/$(stage)/$(stage)_$(ClusterId)_$(ProcId).out
-error = $(log_root:logs)/$(stage)/$(stage)_$(ClusterId)_$(ProcId).err
-log = $(log_root:logs)/$(stage)/$(stage)_$(ClusterId).log
+output = $(log_root)/$(stage)_$(ClusterId)_$(ProcId).out
+error = $(log_root)/$(stage)_$(ClusterId)_$(ProcId).err
+log = $(log_root)/$(stage)_$(ClusterId).log
 
 queue jobIndex from seq $(first_job) $(last_job) |
