@@ -1,5 +1,6 @@
 *.root
 *.log
+slurm-*.out
 logs/
 inputs*.txt
 __pycache__/
