@@ -22,6 +22,7 @@ process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(options.inputFiles)
 )
 
+process.load("DeepMuonRecoSample.Ntuplizer.deepMuonRecoNtuplizer_cfi")
 process.load("SimTracker.TrackAssociatorProducers.quickTrackAssociatorByHits_cfi")
 process.load("SimTracker.TrackerHitAssociation.tpClusterProducer_cfi")
 process.load("SimTracker.TrackAssociation.trackingParticleRecoTrackAsssociation_cfi")
@@ -30,8 +31,6 @@ process.tpClusterProducer.pixelSimLinkSrc = cms.InputTag("simSiPixelDigis", "Pix
 process.tpClusterProducer.phase2OTSimLinkSrc = cms.InputTag("simSiPixelDigis", "Tracker")
 process.tpClusterProducer.pixelClusterSrc = cms.InputTag("siPixelClusters")
 process.tpClusterProducer.phase2OTClusterSrc = cms.InputTag("siPhase2Clusters")
-
-process.load("DeepMuonRecoSample.Ntuplizer.deepMuonRecoNtuplizer_cfi")
 
 process.TFileService = cms.Service("TFileService",
     fileName = cms.string(options.outputFile)

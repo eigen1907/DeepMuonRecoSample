@@ -549,14 +549,12 @@ void DeepMuonRecoNtuplizer::analyze(const edm::Event& iEvent, const edm::EventSe
     trackIsGlbMuon.push_back(isGlbMuon);
     trackIsPFMuon.push_back(isPFMuon);
 
-    int isMatchedMuon = -1;
-    int matchedTpIdx = -1;
-    float matchQual = -1.0f;
+    // Data has no truth association; keep these vectors aligned with tracks.
+    int isMatchedMuon = isMC_ ? 0 : -999;
+    int matchedTpIdx = isMC_ ? -1 : -999;
+    float matchQual = isMC_ ? 0.0f : -999.0f;
 
     if (isMC_) {
-      isMatchedMuon = 0;
-      matchQual = 0.0f;
-
       edm::RefToBase<reco::Track> trkRefBase(trkRef);
 
       if (recoToSims->find(trkRefBase) != recoToSims->end()) {
