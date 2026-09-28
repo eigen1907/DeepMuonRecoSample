@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 #SBATCH --mem=8G
 #SBATCH --time=24:00:00
-# Exclude nodes with broken CVMFS access as of 2026-09-26.
-#SBATCH --exclude=entei,ho-oh
 
 set -euo pipefail
 stage=${1:?gensim or minbias required}
@@ -18,17 +16,19 @@ printf -v number '%05d' "$index"
 final="$output/${stage}_$number.root"
 partial="$output/.partial/${stage}_${number}_${SLURM_JOB_ID}.root"
 
-if [[ -e $final ]]; then
+if [[ -s $final ]]; then
   echo "Already exists: $final"
   exit 0
 fi
+[[ ! -e $final ]] || { echo "Empty output exists: $final" >&2; exit 1; }
 mkdir -p "$output/.partial"
+trap 'if [[ -e $partial ]]; then rm -f -- "$partial"; fi' EXIT
 echo "[$(date -Is)] START stage=$stage index=$index events=$events node=$(hostname)"
 
 repo="$HOME/workspace/deepmuonreco/DeepMuonRecoSample"
 apptainer exec --cleanenv \
   --bind /cvmfs:/cvmfs \
-  --bind "$HOME/workspace:$HOME/workspace" \
+  --bind "$HOME:$HOME" \
   /cvmfs/unpacked.cern.ch/registry.hub.docker.com/cmssw/el8:x86_64 \
   bash -s -- "$repo" "$cfg" "$events" "$index" "$partial" <<'IN_CONTAINER'
 set -euo pipefail
