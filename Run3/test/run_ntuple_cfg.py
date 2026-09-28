@@ -20,6 +20,14 @@ options.register(
 )
 
 options.register(
+    "isPremix",
+    False,
+    VarParsing.multiplicity.singleton,
+    VarParsing.varType.bool,
+    "Use premix stage2 truth and sim-link products for MC",
+)
+
+options.register(
     "skipEvents",
     0,
     VarParsing.multiplicity.singleton,
@@ -76,16 +84,25 @@ if options.isMC:
         "SimTracker.TrackerHitAssociation.tpClusterProducer_cfi"
     )
 
+    truth_module = "mixData" if options.isPremix else "mix"
     process.tpClusterProducer.trackingParticleSrc = cms.InputTag(
-        "mix",
+        truth_module,
         "MergedTrackTruth",
     )
-    process.tpClusterProducer.pixelSimLinkSrc = cms.InputTag(
-        "simSiPixelDigis"
-    )
-    process.tpClusterProducer.stripSimLinkSrc = cms.InputTag(
-        "simSiStripDigis"
-    )
+    if options.isPremix:
+        process.tpClusterProducer.pixelSimLinkSrc = cms.InputTag(
+            "mixData", "PixelDigiSimLink"
+        )
+        process.tpClusterProducer.stripSimLinkSrc = cms.InputTag(
+            "mixData", "StripDigiSimLink"
+        )
+    else:
+        process.tpClusterProducer.pixelSimLinkSrc = cms.InputTag(
+            "simSiPixelDigis"
+        )
+        process.tpClusterProducer.stripSimLinkSrc = cms.InputTag(
+            "simSiStripDigis"
+        )
     process.tpClusterProducer.pixelClusterSrc = cms.InputTag(
         "siPixelClusters"
     )
@@ -94,7 +111,7 @@ if options.isMC:
     )
 
     process.deepMuonRecoNtuplizer.trackingParticles = cms.InputTag(
-        "mix",
+        truth_module,
         "MergedTrackTruth",
     )
 
